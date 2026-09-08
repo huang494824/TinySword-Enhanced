@@ -2,6 +2,45 @@
 
 TinySword 是一个使用 Unity 6 制作的 2D 俯视角动作角色扮演游戏原型。项目包含主菜单、玩家战斗、敌人状态机、技能冷却、NPC 对话、宝箱与金币、音量设置、存档读取和死亡重开等基础功能，适合用于学习小型 Unity 2D ARPG 的完整玩法链路。
 
+## 系统架构图
+
+```mermaid
+flowchart LR
+    Input["旧 Input Manager<br/>方向轴 / J K E Q R"] --> Player
+
+    StartUI["StartCanvas"] -->|"开始 / 读档 / 退出"| GM["GameManger<br/>DontDestroyOnLoad"]
+    Settings["SettingCanvas"] -->|"存档 / 场景 / 直接调 AudioSource"| GM
+    NormalUI["NormalCanvas"] -->|"播放 BGM"| GM
+
+    GM -->|"读取、写入 Transform"| Player
+    Player -->|"播放音效"| GM
+    Enemy["EnemyBase / Enemy1"] -->|"播放音效"| GM
+    Coin["Coin / Chest"] -->|"增加 coinNum"| GM
+    GM <-->|"save.txt"| Save["persistentDataPath"]
+
+    Pursuit["EnemypursuitColider"] -->|"进入/离开警戒区"| Enemy
+    Enemy -->|"追击目标"| Player
+
+    Player -->|"Animator Trigger"| PlayerAnim["玩家动画事件"]
+    Enemy -->|"Animator Trigger"| EnemyAnim["敌人动画事件"]
+    PlayerAnim -->|"Attack1 / Skill"| Hitbox["AttackPerfab"]
+    EnemyAnim -->|"Attack1"| Hitbox
+    PlayerAnim --> SkillFX["PlayerSkill"]
+    SkillFX --> Hitbox
+
+    Hitbox -->|"TakeDamage"| Player
+    Hitbox -->|"TakeDamage"| Enemy
+
+    Player -->|"直接写入"| HPUI["生命值 / 死亡 UI"]
+    Enemy -->|"直接写入"| EnemyHP["敌人血条"]
+    CanvasMgr["CanvasManger"] -->|"每帧读取 coinNum"| GM
+    CanvasMgr --> CoinUI["金币文本"]
+    SkillUI["SkillButton"] -->|"每帧读取冷却字段"| Player
+
+    NPC["NPCUnit"] --> CanvasMgr
+    CanvasMgr --> Talk["TalkCanvas"]
+```
+
 ## 开发环境
 
 | 项目 | 配置 |
