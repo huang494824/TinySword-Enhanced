@@ -71,6 +71,8 @@ public class Player : MonoBehaviour
     ///</summary>
     public void PlayerWindowsInput()
     {
+        if (isDead) return;
+
         //移动输入
         moveDirection.x = Input.GetAxisRaw("Horizontal");
         moveDirection.y = Input.GetAxisRaw("Vertical");
@@ -122,6 +124,8 @@ public class Player : MonoBehaviour
     /// </summary>
     public void PlayerAttack()
     {
+        if (isDead) return;
+
         if (!isAttacking && !isGuard)//如果不在攻击状态
         {
             isAttacking = true;
@@ -229,6 +233,8 @@ public class Player : MonoBehaviour
     /// </summary>
     public void PlayerSkill1()
     {
+        if (isDead) return;
+
         if (!isAttacking && !isGuard && canSkill1)
         {
             isAttacking = true;
@@ -245,6 +251,8 @@ public class Player : MonoBehaviour
     /// </summary>
     public void PlayerSkill2()
     {
+        if (isDead) return;
+
         if (!isAttacking && !isGuard && canSkill2)
         {
             isAttacking = true;
@@ -261,6 +269,8 @@ public class Player : MonoBehaviour
     /// </summary>
     public void PlayerSkill3()
     {
+        if (isDead) return;
+
         if (!isAttacking && !isGuard && canSkill3)
         {
             isAttacking = true;
@@ -276,6 +286,8 @@ public class Player : MonoBehaviour
     #region 动画事件
     public void Attack1()
     {
+        if (isDead) return;
+
         GameObject go = Instantiate(attackPerfab, attack1Pos.position, attack1Pos.rotation);
         go.transform.localScale = attack1Pos.localScale;
         go.GetComponent<AttackPerfab>().Init(true, ATK, transform);
@@ -283,12 +295,16 @@ public class Player : MonoBehaviour
     }
     public void Skill()
     {
+        if (isDead) return;
+
         if (skillNum == 1){Skill1();}
         else if (skillNum == 2) { Skill2(); }
         else if (skillNum == 3) { Skill3(); }
     }
     public void Skill1()
     {
+        if (isDead) return;
+
         GameObject go;
         if (sr.flipX)//向左
         {
@@ -303,6 +319,8 @@ public class Player : MonoBehaviour
     }
     public void Skill2()
     {
+        if (isDead) return;
+
         GameObject go;
         if (sr.flipX)//向左
         {
@@ -317,6 +335,8 @@ public class Player : MonoBehaviour
     }
     public void Skill3()
     {
+        if (isDead) return;
+
         GameObject go;
         go = Instantiate(skill3Perfab, skill3Pos.position, skill3Pos.rotation);
         go.transform.localScale = skill3Pos.localScale;
