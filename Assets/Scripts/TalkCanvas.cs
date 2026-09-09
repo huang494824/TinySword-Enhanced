@@ -37,6 +37,9 @@ public class TalkCanvas : MonoBehaviour
 
     public void TalkWithNPC1()
     {
+        if (GameManger.Instance == null ||
+            !GameManger.Instance.TryTransition(GameState.Playing, GameState.Dialogue)) return;
+
         talkIndex = 0;
         DoTalk("村民", talkContent[talkIndex]);
     }
@@ -47,10 +50,17 @@ public class TalkCanvas : MonoBehaviour
         gameObject.SetActive(false);
         NPCImage.SetActive(false);
         playerImage.SetActive(false);
+        if (GameManger.Instance != null)
+        {
+            GameManger.Instance.TryTransition(GameState.Dialogue, GameState.Playing);
+        }
     }
 
     public void OnTalkButtonClick()
     {
+        if (GameManger.Instance == null ||
+            GameManger.Instance.CurrentState != GameState.Dialogue) return;
+
         talkIndex += 1;
         if (talkIndex < talkContent.Length)
         {
