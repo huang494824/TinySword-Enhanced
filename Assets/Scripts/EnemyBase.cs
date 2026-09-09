@@ -94,7 +94,7 @@ public class EnemyBase : MonoBehaviour
     }
     public virtual void idleExit()
     {
-
+        CancelInvoke(nameof(IldeToWalk));
     }
     public virtual void walkEnter()
     {
@@ -196,7 +196,7 @@ public class EnemyBase : MonoBehaviour
     }
     public virtual void attackExit()
     {
-
+        CancelInvoke(nameof(AttackToWalk));
     }
     public virtual void getHitEnter()
     {
