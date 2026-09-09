@@ -33,6 +33,10 @@ public class SettingCanvas : MonoBehaviour
     public void Close()
     {
         CanvasManger.Instance.OpenCanvas(false,0);
+        if (GameManger.Instance != null)
+        {
+            GameManger.Instance.TryTransition(GameState.Settings, GameState.Playing);
+        }
     }
 
 

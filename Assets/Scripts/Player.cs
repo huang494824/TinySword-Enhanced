@@ -35,6 +35,16 @@ public class Player : MonoBehaviour
     private bool isGuard = false;
     private bool isDead = false;
 
+    private bool CanAcceptPlayerInput => !isDead && GameManger.Instance != null &&
+        GameManger.Instance.CanAcceptPlayerInput;
+
+    private void StopMovement()
+    {
+        moveDirection = Vector2.zero;
+        rb.linearVelocity = Vector2.zero;
+        am.SetBool("IsRun", false);
+    }
+
     void Awake()
     {
         HPNow = HPMax;
@@ -63,7 +73,7 @@ public class Player : MonoBehaviour
         }
         else
         {
-            rb.linearVelocity = Vector2.zero;
+            StopMovement();
         }
     }
     ///<summary>
@@ -71,7 +81,16 @@ public class Player : MonoBehaviour
     ///</summary>
     public void PlayerWindowsInput()
     {
-        if (isDead) return;
+        if (isDead)
+        {
+            StopMovement();
+            return;
+        }
+        if (!CanAcceptPlayerInput)
+        {
+            StopMovement();
+            return;
+        }
 
         //移动输入
         moveDirection.x = Input.GetAxisRaw("Horizontal");
@@ -105,6 +124,12 @@ public class Player : MonoBehaviour
     /// </summary>
     public void PlayerMove()
     {
+        if (!CanAcceptPlayerInput)
+        {
+            StopMovement();
+            return;
+        }
+
         if (!isAttacking && !isGuard)
         {
             rb.linearVelocity = moveDirection * speed;//移动
@@ -125,6 +150,7 @@ public class Player : MonoBehaviour
     public void PlayerAttack()
     {
         if (isDead) return;
+        if (!CanAcceptPlayerInput) return;
 
         if (!isAttacking && !isGuard)//如果不在攻击状态
         {
@@ -154,12 +180,13 @@ public class Player : MonoBehaviour
     /// </summary>
     public void PlayerGuard()
     {
+        if (!CanAcceptPlayerInput) return;
+
         if (!isDead)
         {
             if(isGuard)
             {
-                am.SetBool("IsGuard", false);
-                isGuard = false;
+                EndGuard();
             }
             else
             {
@@ -173,6 +200,12 @@ public class Player : MonoBehaviour
             }
         }
     }
+    private void EndGuard()
+    {
+        am.SetBool("IsGuard", false);
+        isGuard = false;
+    }
+
     /// <summary>
     /// 技能计时器
     /// </summary>
@@ -224,7 +257,7 @@ public class Player : MonoBehaviour
             {
                 canSkill4 = true;
                 skill4Time = skill4CD;
-                if(isGuard){ PlayerGuard();}
+                if(isGuard && !isDead){ EndGuard();}
             }
         }
     }
@@ -234,6 +267,7 @@ public class Player : MonoBehaviour
     public void PlayerSkill1()
     {
         if (isDead) return;
+        if (!CanAcceptPlayerInput) return;
 
         if (!isAttacking && !isGuard && canSkill1)
         {
@@ -252,6 +286,7 @@ public class Player : MonoBehaviour
     public void PlayerSkill2()
     {
         if (isDead) return;
+        if (!CanAcceptPlayerInput) return;
 
         if (!isAttacking && !isGuard && canSkill2)
         {
@@ -270,6 +305,7 @@ public class Player : MonoBehaviour
     public void PlayerSkill3()
     {
         if (isDead) return;
+        if (!CanAcceptPlayerInput) return;
 
         if (!isAttacking && !isGuard && canSkill3)
         {
@@ -380,10 +416,14 @@ public class Player : MonoBehaviour
     {
         if(!isDead)
         {
-            am.SetTrigger("Dead");
-            am.SetBool("IsRun", false);
-            rb.linearVelocity = Vector2.zero;
             isDead = true;
+            if (GameManger.Instance != null)
+            {
+                GameManger.Instance.EnterDead();
+            }
+
+            am.SetTrigger("Dead");
+            StopMovement();
             deadUI.SetActive(true);
         }
     }

@@ -14,20 +14,49 @@ public class GameManger : MonoBehaviour
     public string savePath;
     public bool doLoadGame = false;
 
+    private GameStateModel gameState;
+
+    public GameState CurrentState => gameState.CurrentState;
+    public bool CanAcceptPlayerInput => gameState != null && gameState.CanAcceptPlayerInput;
+
 
     private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
+            return;
         }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+        gameState = new GameStateModel();
+        SceneManager.sceneLoaded += OnSceneLoaded;
         Application.targetFrameRate = 90;
         savePath = Path.Combine(Application.persistentDataPath, "save.txt");
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        gameState = new GameStateModel();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance != this) return;
+
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        Instance = null;
+    }
+
+    public bool TryTransition(GameState expectedState, GameState nextState)
+    {
+        return gameState != null && gameState.TryTransition(expectedState, nextState);
+    }
+
+    public bool EnterDead()
+    {
+        return gameState != null && gameState.EnterDead();
     }
 
     void Start()
