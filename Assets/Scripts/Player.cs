@@ -13,20 +13,28 @@ public class Player : MonoBehaviour
     public GameObject deadUI;
     public static Player Instance;
     
-    [Header("移动")]
-    public float speed = 1.0f;
+    [Header("配置")]
+    [SerializeField] private PlayerConfig playerConfig;
+    [SerializeField] private SkillConfig skill1Config;
+    [SerializeField] private SkillConfig skill2Config;
+    [SerializeField] private SkillConfig skill3Config;
+
+    public float speed => playerConfig.MoveSpeed;
     [Header("攻击")]
     public Transform attack1Pos;
     public GameObject attackPerfab,skill1Perfab,skill2Perfab, skill3Perfab;
     public Transform skill1LeftPos, skill1RightPos,skill2LeftPos, skill2RightPos,skill3Pos;
     public int skillNum = 1;
-    public float skill1CD = 3f, skill2CD = 4f, skill3CD = 10f,skill4CD = 2f;
+    public float skill1CD => skill1Config.Cooldown;
+    public float skill2CD => skill2Config.Cooldown;
+    public float skill3CD => skill3Config.Cooldown;
+    public float skill4CD => playerConfig.GuardCooldown;
     [HideInInspector]public float skill1Time = 0f, skill2Time = 0f, skill3Time = 0f, skill4Time = 0f;
     [HideInInspector]public bool canSkill1 = true, canSkill2 = true, canSkill3 = true, canSkill4 = true;
 
+    public float ATK => playerConfig.AttackDamage;
+    public float HPMax => playerConfig.MaxHealth;
     [Header("基础属性")]
-    public float ATK = 10f;
-    public float HPMax = 100f;
     public float HPNow = 100f;
 
     private Vector2 moveDirection;
@@ -34,9 +42,51 @@ public class Player : MonoBehaviour
     private bool isAttacking = false;
     private bool isGuard = false;
     private bool isDead = false;
+    private bool configurationErrorReported;
 
-    private bool CanAcceptPlayerInput => !isDead && GameManger.Instance != null &&
+    private bool CanAcceptPlayerInput => HasRequiredConfigs() && !isDead && GameManger.Instance != null &&
         GameManger.Instance.CanAcceptPlayerInput;
+
+    private bool HasRequiredConfigs()
+    {
+        if (playerConfig != null && skill1Config != null && skill2Config != null && skill3Config != null)
+            return true;
+
+        if (!configurationErrorReported)
+        {
+            Debug.LogError("Player requires playerConfig, skill1Config, skill2Config and skill3Config. Bind all four configurations before running.", this);
+            configurationErrorReported = true;
+        }
+        enabled = false;
+        return false;
+    }
+
+    private void InitializeNestedSkill()
+    {
+        // 仅兼容当前 Prefab 中唯一的 HolyCross；GameScene 已移除它。
+        PlayerSkill[] nestedSkills = GetComponentsInChildren<PlayerSkill>(true);
+        if (nestedSkills.Length == 1)
+        {
+            nestedSkills[0].Init(skill1Config, transform);
+        }
+        else if (nestedSkills.Length > 1)
+        {
+            Debug.LogError("Player contains multiple nested PlayerSkill components; cannot safely assign skill1Config.", this);
+        }
+    }
+
+    private void InitializeSpawnedSkill(GameObject effect, SkillConfig config)
+    {
+        if (effect.TryGetComponent<PlayerSkill>(out var skill))
+        {
+            skill.Init(config, transform);
+            return;
+        }
+
+        Debug.LogError("Spawned skill VFX requires a PlayerSkill component.", effect);
+        effect.SetActive(false);
+        Destroy(effect);
+    }
 
     private void StopMovement()
     {
@@ -47,15 +97,17 @@ public class Player : MonoBehaviour
 
     void Awake()
     {
-        HPNow = HPMax;
-        if(Instance != null)
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
+            return;
         }
-        else
-        {
-            Instance = this;
-        }
+
+        Instance = this;
+        if (!HasRequiredConfigs()) return;
+
+        HPNow = HPMax;
+        InitializeNestedSkill();
     }
 
 
@@ -211,6 +263,7 @@ public class Player : MonoBehaviour
     /// </summary>
     public void SkillTimers()
     {
+        if (!HasRequiredConfigs()) return;
         if(!canSkill1)
         {
             if(skill1Time< skill1CD)
@@ -276,8 +329,8 @@ public class Player : MonoBehaviour
             skill1Time = 0;
             am.SetTrigger("Skill");
             skillNum = 1;
-            Invoke(nameof(AttackEnd), 0.5f);//攻击结束
-            GameManger.Instance.PlaySound(3);
+            Invoke(nameof(AttackEnd), skill1Config.ActionRecovery);//攻击结束
+            GameManger.Instance.PlaySound(skill1Config.SoundIndex);
         }
     }
     /// <summary>
@@ -295,8 +348,8 @@ public class Player : MonoBehaviour
             skill2Time = 0;
             am.SetTrigger("Skill");
             skillNum = 2;
-            Invoke(nameof(AttackEnd), 0.5f);//攻击结束
-            GameManger.Instance.PlaySound(3);
+            Invoke(nameof(AttackEnd), skill2Config.ActionRecovery);//攻击结束
+            GameManger.Instance.PlaySound(skill2Config.SoundIndex);
         }
     }
     /// <summary>
@@ -314,8 +367,8 @@ public class Player : MonoBehaviour
             skill3Time = 0;
             am.SetTrigger("Skill");
             skillNum = 3;
-            Invoke(nameof(AttackEnd), 0.5f);//攻击结束
-            GameManger.Instance.PlaySound(4);
+            Invoke(nameof(AttackEnd), skill3Config.ActionRecovery);//攻击结束
+            GameManger.Instance.PlaySound(skill3Config.SoundIndex);
         }
     }
 
@@ -323,6 +376,7 @@ public class Player : MonoBehaviour
     public void Attack1()
     {
         if (isDead) return;
+        if (!HasRequiredConfigs()) return;
 
         GameObject go = Instantiate(attackPerfab, attack1Pos.position, attack1Pos.rotation);
         go.transform.localScale = attack1Pos.localScale;
@@ -340,6 +394,7 @@ public class Player : MonoBehaviour
     public void Skill1()
     {
         if (isDead) return;
+        if (!HasRequiredConfigs()) return;
 
         GameObject go;
         if (sr.flipX)//向左
@@ -352,10 +407,12 @@ public class Player : MonoBehaviour
             go = Instantiate(skill1Perfab, skill1RightPos.position, skill1RightPos.rotation);
             go.transform.localScale = skill1RightPos.localScale;
         }
+        InitializeSpawnedSkill(go, skill1Config);
     }
     public void Skill2()
     {
         if (isDead) return;
+        if (!HasRequiredConfigs()) return;
 
         GameObject go;
         if (sr.flipX)//向左
@@ -368,14 +425,17 @@ public class Player : MonoBehaviour
             go = Instantiate(skill2Perfab, skill2RightPos.position, skill2RightPos.rotation);
             go.transform.localScale = skill2RightPos.localScale;
         }
+        InitializeSpawnedSkill(go, skill2Config);
     }
     public void Skill3()
     {
         if (isDead) return;
+        if (!HasRequiredConfigs()) return;
 
         GameObject go;
         go = Instantiate(skill3Perfab, skill3Pos.position, skill3Pos.rotation);
         go.transform.localScale = skill3Pos.localScale;
+        InitializeSpawnedSkill(go, skill3Config);
     }
     #endregion
     /// <summary>
@@ -385,6 +445,7 @@ public class Player : MonoBehaviour
     /// <param name="attackPosition">攻击者的位置</param>
     public void TakeDamage(float damage, Transform attackPosition)
     {
+        if (!HasRequiredConfigs()) return;
         if (HPNow <= 0) {return;}
         if (isGuard) 
         {

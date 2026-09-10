@@ -290,11 +290,29 @@ MonoBehaviour:
   hpSlider: {fileID: 0}
   hpText: {fileID: 0}
   deadUI: {fileID: 0}
-  speed: 3
-  attackPerfab: {fileID: 1083816888625913475, guid: 8edccb04b9d370f48ad16cb76a2b0dce, type: 3}
+  playerConfig: {fileID: 11400000, guid: da6661ed270016d418998917d0c7adfb, type: 2}
+  skill1Config: {fileID: 11400000, guid: d2dd43d85f5415840b9616bfef60050a, type: 2}
+  skill2Config: {fileID: 11400000, guid: ecca77b487bf69c43b5620fd5e53a932, type: 2}
+  skill3Config: {fileID: 11400000, guid: c6cdfa2e6561a7e47b9e9a1ffec075a9, type: 2}
   attack1Pos: {fileID: 6168890276574355467}
-  ATK: 10
-  HPMax: 100
+  attackPerfab: {fileID: 1083816888625913475, guid: 8edccb04b9d370f48ad16cb76a2b0dce, type: 3}
+  skill1Perfab: {fileID: 0}
+  skill2Perfab: {fileID: 0}
+  skill3Perfab: {fileID: 0}
+  skill1LeftPos: {fileID: 0}
+  skill1RightPos: {fileID: 0}
+  skill2LeftPos: {fileID: 0}
+  skill2RightPos: {fileID: 0}
+  skill3Pos: {fileID: 0}
+  skillNum: 1
+  skill1Time: 0
+  skill2Time: 0
+  skill3Time: 0
+  skill4Time: 0
+  canSkill1: 1
+  canSkill2: 1
+  canSkill3: 1
+  canSkill4: 1
   HPNow: 100
 --- !u!82 &8613168008241102706
 AudioSource:
