@@ -5,28 +5,52 @@ public class PlayerSkill : MonoBehaviour
     public float destroyTime = 1f;
     public GameObject attackPerfab;
     public Transform player;
+    private SkillConfig config;
+    private bool initialized;
+    private bool initializationErrorReported;
+
+    public void Init(SkillConfig skillConfig, Transform attacker)
+    {
+        config = skillConfig;
+        player = attacker;
+        initialized = config != null && player != null;
+        if (!initialized) ReportInitializationError();
+    }
+
     void Start()
     {
         Destroy(gameObject, destroyTime);
-        player = GameObject.Find("Player").transform;
     }
     public void Skill1()
     {
-        GameObject go = Instantiate(attackPerfab, transform.position, transform.rotation);
-        go.transform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
-        go.GetComponent<AttackPerfab>().Init(true, 20, player);
+        SpawnAttack();
     }
     public void Skill2()
     {
-        GameObject go = Instantiate(attackPerfab, transform.position, transform.rotation);
-        go.transform.localScale = new Vector3(3f, 3f, 3f);
-        go.GetComponent<AttackPerfab>().Init(true, 20, player);
+        SpawnAttack();
     }
     public void Skill3()
     {
-        GameObject go = Instantiate(attackPerfab, transform.position, transform.rotation);
-        go.transform.localScale = new Vector3(10f, 10f, 10f);
-        go.GetComponent<AttackPerfab>().Init(true, 30, player);
+        SpawnAttack();
     }
 
+    private void SpawnAttack()
+    {
+        if (!initialized || config == null || player == null)
+        {
+            ReportInitializationError();
+            return;
+        }
+
+        GameObject go = Instantiate(attackPerfab, transform.position, transform.rotation);
+        go.transform.localScale = config.AttackScale;
+        go.GetComponent<AttackPerfab>().Init(true, config.Damage, player);
+    }
+
+    private void ReportInitializationError()
+    {
+        if (initializationErrorReported) return;
+        initializationErrorReported = true;
+        Debug.LogError("PlayerSkill requires Init with a valid SkillConfig and attacker before an Animation Event can spawn an attack.", this);
+    }
 }
