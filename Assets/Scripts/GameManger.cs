@@ -9,10 +9,11 @@ public class GameManger : MonoBehaviour
     public AudioSource audioBGM;
     public AudioClip[] audioClips;
     public AudioClip[] BGMClips;
-    public Transform playerPos;
     public int coinNum = 10;
     public string savePath;
-    public bool doLoadGame = false;
+
+    private int initialCoinNum;
+    private SaveData pendingSave;
 
     private GameStateModel gameState;
 
@@ -30,21 +31,39 @@ public class GameManger : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        initialCoinNum = coinNum;
         gameState = new GameStateModel();
         SceneManager.sceneLoaded += OnSceneLoaded;
         Application.targetFrameRate = 90;
-        savePath = Path.Combine(Application.persistentDataPath, "save.txt");
+        savePath = Path.Combine(Application.persistentDataPath, "save.json");
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (Instance != this) return;
         gameState = new GameStateModel();
+        if (pendingSave == null) return;
+
+        if (mode != LoadSceneMode.Single || !TryGetScenePlayer(scene, out Player player))
+        {
+            pendingSave = null;
+            Debug.LogWarning("Continue cancelled: the expected GameScene Player is not ready.", this);
+            SceneManager.LoadScene("StartScene");
+            return;
+        }
+
+        // pending 只保存已完整校验的数据，所有 readiness 检查均在写入之前完成。
+        Vector3 position = new Vector3(pendingSave.positionX, pendingSave.positionY, pendingSave.positionZ);
+        player.transform.position = position;
+        coinNum = pendingSave.coinNum;
+        pendingSave = null;
     }
 
     private void OnDestroy()
     {
         if (Instance != this) return;
 
+        pendingSave = null;
         SceneManager.sceneLoaded -= OnSceneLoaded;
         Instance = null;
     }
@@ -64,10 +83,6 @@ public class GameManger : MonoBehaviour
         
     }
 
-    void Update()
-    {
-        DoLoad();
-    }
     public void PlaySound(int index)
     {
         audioS.PlayOneShot(audioClips[index]);
@@ -88,25 +103,77 @@ public class GameManger : MonoBehaviour
 
     public void SaveGame()
     {
-        playerPos = Player.Instance.transform;
-        string saveData = $"{playerPos.position.x},{playerPos.position.y},{playerPos.position.z},{coinNum}";
-        File.WriteAllText(savePath, saveData);
+        TrySaveGame();
+    }
+
+    public bool TrySaveGame()
+    {
+        if (Instance != this) return false;
+        if (pendingSave != null || !TryGetScenePlayer(SceneManager.GetActiveScene(), out Player player))
+        {
+            Debug.LogWarning("Cannot save: an active GameScene Player is required.", this);
+            return false;
+        }
+
+        Vector3 position = player.transform.position;
+        var snapshot = new SaveData
+        {
+            version = SaveJsonCodec.CurrentVersion,
+            positionX = position.x,
+            positionY = position.y,
+            positionZ = position.z,
+            coinNum = coinNum
+        };
+        if (SaveFileStore.TryWrite(savePath, snapshot, out string error)) return true;
+
+        Debug.LogWarning("Save failed: " + error, this);
+        return false;
     }
 
     public void BackStartScene()
     {
+        if (Instance != this) return;
+        pendingSave = null;
         SceneManager.LoadScene("StartScene");
     }
 
     public void StartGame()
     {
+        if (Instance != this) return;
+        pendingSave = null;
+        coinNum = initialCoinNum;
         SceneManager.LoadScene("GameScene");
     }
 
     public void loadSaveGame()
     {
-        doLoadGame = true;
-        SceneManager.LoadScene("GameScene");
+        if (Instance != this) return;
+        if (pendingSave != null)
+        {
+            Debug.LogWarning("Continue is already pending.", this);
+            return;
+        }
+        if (SceneManager.GetActiveScene().name != "StartScene")
+        {
+            Debug.LogWarning("Continue is only available in StartScene.", this);
+            return;
+        }
+        if (!SaveFileStore.TryRead(savePath, out SaveData data, out string error))
+        {
+            Debug.LogWarning("Continue failed: " + error, this);
+            return;
+        }
+
+        pendingSave = data;
+        try
+        {
+            SceneManager.LoadScene("GameScene");
+        }
+        catch (System.Exception exception) when (exception is UnityException || exception is System.ArgumentException)
+        {
+            pendingSave = null;
+            Debug.LogWarning("Continue could not load GameScene: " + exception.Message, this);
+        }
     }
 
     public void ADDCoin(int num)
@@ -123,25 +190,11 @@ public class GameManger : MonoBehaviour
 #endif
     }
 
-    public void DoLoad()
+    private static bool TryGetScenePlayer(Scene scene, out Player player)
     {
-        if (doLoadGame)
-        {
-            if (SceneManager.GetActiveScene().name == "GameScene")
-            {
-                doLoadGame = false;
-                if (File.Exists(savePath))
-                {
-                    string saveData = File.ReadAllText(savePath);
-                    if (saveData != null)
-                    {
-                        string[] data = saveData.Split(',');
-                        Player.Instance.transform.position = new Vector3(float.Parse(data[0]), float.Parse(data[1]), float.Parse(data[2]));
-                        coinNum = int.Parse(data[3]);
-                    }
-                }
-            }
-        }
+        player = Player.Instance;
+        return scene.IsValid() && scene.isLoaded && scene.name == "GameScene" &&
+            player != null && player.isActiveAndEnabled && player.gameObject.scene == scene;
     }
 
 

@@ -57,7 +57,10 @@ public class SettingCanvas : MonoBehaviour
 
     public void OnSaveGameClick()
     {
-        GameManger.Instance.SaveGame();
+        CancelInvoke(nameof(HideSuText));
+        suText.SetActive(false);
+        if (GameManger.Instance == null || !GameManger.Instance.TrySaveGame()) return;
+
         suText.SetActive(true);
         Invoke(nameof(HideSuText), 1f);
     }
