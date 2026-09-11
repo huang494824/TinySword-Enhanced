@@ -171,6 +171,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: EnemyBoss
       objectReference: {fileID: 0}
+    - target: {fileID: 1510124995241216356, guid: 626dce4a1c8380c4187e63ccad86f79a, type: 3}
+      propertyPath: enemyConfig
+      value: 
+      objectReference: {fileID: 11400000, guid: 8878876a786595442b5c6b45baf4ce4a, type: 2}
     - target: {fileID: 4588202685482996363, guid: 626dce4a1c8380c4187e63ccad86f79a, type: 3}
       propertyPath: m_Controller
       value: 

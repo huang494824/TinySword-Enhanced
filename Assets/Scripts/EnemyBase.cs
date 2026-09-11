@@ -5,7 +5,8 @@ public enum EnemyState { idle, walk , pursuit, attack, getHit, dead }
 
 public class EnemyBase : MonoBehaviour
 {
-    public float speed = 1f;
+    [Header("配置")]
+    [SerializeField] private EnemyConfig enemyConfig;
 
     [Header("组件")]
     public Rigidbody2D rb;
@@ -19,8 +20,6 @@ public class EnemyBase : MonoBehaviour
     public Transform pos1, pos2;
     public Transform targetPos;
     [Header("攻击相关")]
-    public float AttackDis = 1f;
-    public float AttackCoolTime = 1f;
     private float attackTimer = 0f;
     public bool canAttack = true;
     private float getHitTimer = 0f;
@@ -31,15 +30,33 @@ public class EnemyBase : MonoBehaviour
     public Transform attack1PosR;
 
     [Header("基础属性")]
-    public float ATK = 10f;
-    public float HPMax = 100f;
     public float HPNow = 100f;
+    private bool configurationErrorReported;
+
+    private bool HasRequiredConfig()
+    {
+        if (enemyConfig != null)
+        {
+            return true;
+        }
+
+        if (!configurationErrorReported)
+        {
+            Debug.LogError("EnemyBase requires enemyConfig. Bind an EnemyConfig before running.", this);
+            configurationErrorReported = true;
+        }
+
+        enabled = false;
+        return false;
+    }
 
     public virtual void Start()
     {
+        if (!HasRequiredConfig()) return;
+
         ChangeState(EnemyState.walk);
         targetPos = pos1;
-        HPNow = HPMax;
+        HPNow = enemyConfig.MaxHealth;
     }
 
     public virtual void Update()
@@ -102,7 +119,7 @@ public class EnemyBase : MonoBehaviour
     }
     public virtual void walkUpdate()
     {
-        rb.linearVelocity = (targetPos.position - transform.position).normalized * speed;
+        rb.linearVelocity = (targetPos.position - transform.position).normalized * enemyConfig.MoveSpeed;
         sr.flipX = rb.linearVelocity.x < 0;
 
         if(Vector2.Distance(transform.position,pos1.position) < 0.1f)//角色在pos1位置
@@ -132,13 +149,13 @@ public class EnemyBase : MonoBehaviour
     }
     public virtual void pursuitUpdate()
     {
-        rb.linearVelocity = (targetPos.position - transform.position).normalized * speed;
+        rb.linearVelocity = (targetPos.position - transform.position).normalized * enemyConfig.MoveSpeed;
         sr.flipX = rb.linearVelocity.x < 0;
         if(targetPos ==pos1|| targetPos == pos2)
         {
             ChangeState(EnemyState.walk);
         }
-        else if(Vector2.Distance(transform.position, targetPos.position) < AttackDis)
+        else if(Vector2.Distance(transform.position, targetPos.position) < enemyConfig.AttackDistance)
         {
             if(sr.flipX && (targetPos.position.x - transform.position.x) < 0 )
             {
@@ -164,7 +181,7 @@ public class EnemyBase : MonoBehaviour
 
         if (canAttack)
         {
-            if (Vector2.Distance(transform.position, targetPos.position) > AttackDis)//在攻击距离外
+            if (Vector2.Distance(transform.position, targetPos.position) > enemyConfig.AttackDistance)//在攻击距离外
             {
                 ChangeState(EnemyState.pursuit);
             }
@@ -184,7 +201,7 @@ public class EnemyBase : MonoBehaviour
             }
         }
 
-        if(attackTimer < AttackCoolTime)
+        if(attackTimer < enemyConfig.AttackCooldown)
         {
             attackTimer += Time.deltaTime;
         }
@@ -261,6 +278,8 @@ public class EnemyBase : MonoBehaviour
     /// <param name="player">玩家</param>
     public virtual void PlayerEnterPursuitBox(Player player)
     {
+        if (!HasRequiredConfig()) return;
+
         if (state == EnemyState.dead)
         {
             return;
@@ -275,9 +294,11 @@ public class EnemyBase : MonoBehaviour
     /// <param name="player">玩家</param>
     public virtual void PlayerExitPursuitBox(Player player)
     {
+        if (!HasRequiredConfig()) return;
+
         if(state == EnemyState.attack)
         {
-            Invoke(nameof(AttackToWalk), AttackCoolTime - attackTimer);
+            Invoke(nameof(AttackToWalk), enemyConfig.AttackCooldown - attackTimer);
         }
         else if(state == EnemyState.dead)
         {
@@ -296,10 +317,12 @@ public class EnemyBase : MonoBehaviour
     /// <param name="attackPosition">攻击者的位置</param>
     public virtual void TakeDamage(float damage,Transform attackPosition)
     {
+        if (!HasRequiredConfig()) return;
+
         if (HPNow<=0){return;}
 
         HPNow -= damage;//受到伤害
-        hpSlider.value = HPNow/HPMax;//血条变化
+        hpSlider.value = HPNow/enemyConfig.MaxHealth;//血条变化
         attackerPos = attackPosition;
         if (HPNow <= 0)
         {
@@ -313,6 +336,8 @@ public class EnemyBase : MonoBehaviour
     #region 动画事件
     public void Attack1()
     {
+        if (!HasRequiredConfig()) return;
+
         GameObject go;
         if (sr.flipX)//向左
         {
@@ -324,7 +349,7 @@ public class EnemyBase : MonoBehaviour
             go = Instantiate(attackPerfab, attack1PosR.position, attack1PosR.rotation);
             go.transform.localScale = attack1PosR.localScale;
         }
-        go.GetComponent<AttackPerfab>().Init(false, ATK, transform);//初始化伤害触发器
+        go.GetComponent<AttackPerfab>().Init(false, enemyConfig.AttackDamage, transform);//初始化伤害触发器
         GameManger.Instance.PlaySound(2);//播放攻击音效
     }
     #endregion
