@@ -61,9 +61,9 @@ PrefabInstance:
       value: Enemy3
       objectReference: {fileID: 0}
     - target: {fileID: 1510124995241216356, guid: 626dce4a1c8380c4187e63ccad86f79a, type: 3}
-      propertyPath: speed
-      value: 1
-      objectReference: {fileID: 0}
+      propertyPath: enemyConfig
+      value: 
+      objectReference: {fileID: 11400000, guid: 86837c6c114a12245859337f4c414ea7, type: 2}
     - target: {fileID: 4588202685482996363, guid: 626dce4a1c8380c4187e63ccad86f79a, type: 3}
       propertyPath: m_Controller
       value: 

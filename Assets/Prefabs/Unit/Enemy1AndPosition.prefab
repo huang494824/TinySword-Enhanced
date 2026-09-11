@@ -333,7 +333,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 648288ce451a44844aed8e2008fcc1fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 0.8
+  enemyConfig: {fileID: 11400000, guid: 4bf7c518df6a6b54fb3bef3c487a2fa4, type: 2}
   rb: {fileID: 8650533934855549389}
   am: {fileID: 4588202685482996363}
   sr: {fileID: 135120145120256726}
@@ -344,16 +344,12 @@ MonoBehaviour:
   pos1: {fileID: 6493535093288655432}
   pos2: {fileID: 3966849476655925927}
   targetPos: {fileID: 0}
-  AttackDis: 1
-  AttackCoolTime: 1
   canAttack: 1
   attackerPos: {fileID: 0}
   enemyAndPos: {fileID: 1013356825170598388}
   attackPerfab: {fileID: 1083816888625913475, guid: 8edccb04b9d370f48ad16cb76a2b0dce, type: 3}
   attack1PosL: {fileID: 6601184211196720620}
   attack1PosR: {fileID: 5195284593883575921}
-  ATK: 10
-  HPMax: 100
   HPNow: 100
 --- !u!1 &4064866327942788331
 GameObject:
