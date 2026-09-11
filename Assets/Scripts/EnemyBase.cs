@@ -1,8 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-public enum EnemyState { idle, walk , pursuit, attack, getHit, dead }
-
 public class EnemyBase : MonoBehaviour
 {
     [Header("配置")]
@@ -32,6 +30,24 @@ public class EnemyBase : MonoBehaviour
     [Header("基础属性")]
     public float HPNow = 100f;
     private bool configurationErrorReported;
+    private EnemyStateMachine stateMachine;
+    private EnemyAttackState attackState;
+
+    internal EnemyConfig Config => enemyConfig;
+    internal float AttackTimer
+    {
+        get => attackTimer;
+        set => attackTimer = value;
+    }
+    internal float GetHitTimer
+    {
+        get => getHitTimer;
+        set => getHitTimer = value;
+    }
+
+    private EnemyState RuntimeState => stateMachine != null && stateMachine.IsInitialized
+        ? stateMachine.CurrentState
+        : state;
 
     private bool HasRequiredConfig()
     {
@@ -54,19 +70,32 @@ public class EnemyBase : MonoBehaviour
     {
         if (!HasRequiredConfig()) return;
 
-        ChangeState(EnemyState.walk);
         targetPos = pos1;
         HPNow = enemyConfig.MaxHealth;
+        EnsureStateMachineCreated();
+        if (stateMachine.IsInitialized)
+        {
+            ChangeState(EnemyState.walk);
+        }
+        else
+        {
+            try
+            {
+                stateMachine.Initialize(EnemyState.walk);
+            }
+            finally
+            {
+                SyncStateMirrors();
+            }
+        }
     }
 
     public virtual void Update()
     {
-        if(state == EnemyState.idle){ idleUpdate(); }
-        else if(state == EnemyState.walk){ walkUpdate(); }
-        else if(state == EnemyState.pursuit){ pursuitUpdate(); }
-        else if(state == EnemyState.attack){ attackUpdate(); }
-        else if(state == EnemyState.getHit){ getHitUpdate(); }
-        else if(state == EnemyState.dead){ deadUpdate(); }
+        if (stateMachine != null && stateMachine.IsInitialized)
+        {
+            stateMachine.Tick();
+        }
     }
 
     public virtual void FixedUpdate()
@@ -75,184 +104,24 @@ public class EnemyBase : MonoBehaviour
     }
 
     #region 状态机
-    /// <summary>
-    /// 切换为新状态
-    /// </summary>
-    /// <param name="newState">新状态</param>
     public virtual void ChangeState(EnemyState newState)
     {
-        if (state == EnemyState.idle) { idleExit(); }
-        else if (state == EnemyState.walk) { walkExit(); }
-        else if (state == EnemyState.pursuit) { pursuitExit(); }
-        else if (state == EnemyState.attack) { attackExit(); }
-        else if (state == EnemyState.getHit) { getHitExit(); }
-        else if (state == EnemyState.dead) { deadExit(); }
-        stateOld = state;
-        state = newState;
-        if (state == EnemyState.idle) { idleEnter(); }
-        else if (state == EnemyState.walk) { walkEnter(); }
-        else if (state == EnemyState.pursuit) { pursuitEnter(); }
-        else if (state == EnemyState.attack) { attackEnter(); }
-        else if (state == EnemyState.getHit) { getHitEnter(); }
-        else if (state == EnemyState.dead) { deadEnter(); }
-    }
-    public virtual void idleEnter()
-    {
-        am.SetBool("IsRun", false);
-        if(stateOld == EnemyState.walk)
+        EnsureStateMachineCreated();
+        try
         {
-            CancelInvoke(nameof(IldeToWalk));
-            Invoke(nameof(IldeToWalk), 2f);
-        }
-    }
-    public virtual void idleUpdate()
-    {
-        rb.linearVelocity = Vector2.zero;
-    }
-    public virtual void idleExit()
-    {
-        CancelInvoke(nameof(IldeToWalk));
-    }
-    public virtual void walkEnter()
-    {
-        am.SetBool("IsRun", true);
-    }
-    public virtual void walkUpdate()
-    {
-        rb.linearVelocity = (targetPos.position - transform.position).normalized * enemyConfig.MoveSpeed;
-        sr.flipX = rb.linearVelocity.x < 0;
-
-        if(Vector2.Distance(transform.position,pos1.position) < 0.1f)//角色在pos1位置
-        {
-            if(targetPos == pos1)//角色目标点是pos1
+            if (stateMachine.IsInitialized)
             {
-                targetPos = pos2;//角色目标点变为pos2
-                ChangeState(EnemyState.idle);//角色状态变为idle
+                stateMachine.ChangeState(newState);
+            }
+            else
+            {
+                stateMachine.Initialize(newState);
             }
         }
-        else if(Vector2.Distance(transform.position, pos2.position) < 0.1f)
+        finally
         {
-            if (targetPos == pos2)
-            {
-                targetPos = pos1;
-                ChangeState(EnemyState.idle);
-            }
+            SyncStateMirrors();
         }
-    }
-    public virtual void walkExit()
-    {
-
-    }
-    public virtual void pursuitEnter()
-    {
-        am.SetBool("IsRun", true);
-    }
-    public virtual void pursuitUpdate()
-    {
-        rb.linearVelocity = (targetPos.position - transform.position).normalized * enemyConfig.MoveSpeed;
-        sr.flipX = rb.linearVelocity.x < 0;
-        if(targetPos ==pos1|| targetPos == pos2)
-        {
-            ChangeState(EnemyState.walk);
-        }
-        else if(Vector2.Distance(transform.position, targetPos.position) < enemyConfig.AttackDistance)
-        {
-            if(sr.flipX && (targetPos.position.x - transform.position.x) < 0 )
-            {
-                ChangeState(EnemyState.attack);
-            }
-            else if(!sr.flipX && (targetPos.position.x - transform.position.x) > 0)
-            {
-                ChangeState(EnemyState.attack);
-            }
-        }
-    }
-    public virtual void pursuitExit()
-    {
-        
-    }
-    public virtual void attackEnter()
-    {
-        am.SetBool("IsRun", false);
-    }
-    public virtual void attackUpdate()
-    {
-        rb.linearVelocity = Vector2.zero;
-
-        if (canAttack)
-        {
-            if (Vector2.Distance(transform.position, targetPos.position) > enemyConfig.AttackDistance)//在攻击距离外
-            {
-                ChangeState(EnemyState.pursuit);
-            }
-            else if (sr.flipX && (targetPos.position.x - transform.position.x) > 0)//在攻击距离内但在反方向
-            {
-                ChangeState(EnemyState.pursuit);
-            }
-            else if (!sr.flipX && (targetPos.position.x - transform.position.x) < 0)//在攻击距离内但在反方向
-            {
-                ChangeState(EnemyState.pursuit);
-            }
-            else//在攻击距离内且方向正确
-            {
-                am.SetTrigger("Attack1");
-                
-                canAttack = false;
-            }
-        }
-
-        if(attackTimer < enemyConfig.AttackCooldown)
-        {
-            attackTimer += Time.deltaTime;
-        }
-        else
-        {
-            attackTimer = 0f;
-            canAttack = true;
-        }
-    }
-    public virtual void attackExit()
-    {
-        CancelInvoke(nameof(AttackToWalk));
-    }
-    public virtual void getHitEnter()
-    {
-        am.SetTrigger("GetHit");
-        am.SetBool("IsRun", false);
-        rb.linearVelocity = Vector2.zero;
-        getHitTimer = 0f;
-    }
-    public virtual void getHitUpdate()
-    {
-        getHitTimer += Time.deltaTime;
-        //受到攻击后后退
-        if(getHitTimer <= 0.2f){rb.linearVelocity = (transform.position - attackerPos.position).normalized * 2f; }
-        else{rb.linearVelocity = Vector2.zero;}
-        //受到攻击后一段时间后回到pursuit状态
-        if(getHitTimer >= 1f)
-        {   
-            getHitTimer = 0f;
-            ChangeState(EnemyState.pursuit);
-        }
-    }
-    public virtual void getHitExit()
-    {
-
-    }
-    public virtual void deadEnter()
-    {
-        am.SetBool("IsRun", false);
-        am.SetTrigger("Dead");
-        Invoke(nameof(DestroyEnemyAndPos), 1f);
-        Destroy(hpSlider.transform.parent.gameObject);//销毁怪物身上的UI
-    }
-    public virtual void deadUpdate()
-    {
-        rb.linearVelocity = Vector2.zero;
-    }
-    public virtual void deadExit()
-    {
-
     }
 
     public virtual void IldeToWalk()
@@ -271,6 +140,65 @@ public class EnemyBase : MonoBehaviour
         Instantiate(coinGO, transform.position, transform.rotation);
         Destroy(enemyAndPos);
     }
+
+    internal void ScheduleIldeToWalk(float delay)
+    {
+        CancelInvoke(nameof(IldeToWalk));
+        Invoke(nameof(IldeToWalk), delay);
+    }
+
+    internal void CancelIldeToWalk()
+    {
+        CancelInvoke(nameof(IldeToWalk));
+    }
+
+    internal void ScheduleAttackToWalk(float delay)
+    {
+        Invoke(nameof(AttackToWalk), delay);
+    }
+
+    internal void CancelAttackToWalk()
+    {
+        CancelInvoke(nameof(AttackToWalk));
+    }
+
+    internal void ScheduleDestroyEnemyAndPos(float delay)
+    {
+        Invoke(nameof(DestroyEnemyAndPos), delay);
+    }
+
+    internal void DestroyHpSlider()
+    {
+        Destroy(hpSlider.transform.parent.gameObject);
+    }
+
+    private void EnsureStateMachineCreated()
+    {
+        if (stateMachine != null)
+        {
+            return;
+        }
+
+        attackState = new EnemyAttackState(this);
+        stateMachine = new EnemyStateMachine(
+            new EnemyIdleState(this),
+            new EnemyWalkState(this),
+            new EnemyPursuitState(this),
+            attackState,
+            new EnemyGetHitState(this),
+            new EnemyDeadState(this));
+    }
+
+    private void SyncStateMirrors()
+    {
+        if (stateMachine == null || !stateMachine.IsInitialized)
+        {
+            return;
+        }
+
+        stateOld = stateMachine.PreviousState;
+        state = stateMachine.CurrentState;
+    }
     #endregion
     /// <summary>
     /// 玩家进入警戒范围
@@ -280,7 +208,7 @@ public class EnemyBase : MonoBehaviour
     {
         if (!HasRequiredConfig()) return;
 
-        if (state == EnemyState.dead)
+        if (RuntimeState == EnemyState.dead)
         {
             return;
         }
@@ -296,11 +224,12 @@ public class EnemyBase : MonoBehaviour
     {
         if (!HasRequiredConfig()) return;
 
-        if(state == EnemyState.attack)
+        EnsureStateMachineCreated();
+        if(RuntimeState == EnemyState.attack)
         {
-            Invoke(nameof(AttackToWalk), enemyConfig.AttackCooldown - attackTimer);
+            attackState.ScheduleWalkAfterRemainingCooldown();
         }
-        else if(state == EnemyState.dead)
+        else if(RuntimeState == EnemyState.dead)
         {
             return;
         }
